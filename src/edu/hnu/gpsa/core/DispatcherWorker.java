@@ -24,7 +24,6 @@ public class DispatcherWorker extends Task {
 	
 	public DispatcherWorker(MapperCore csrMC,MapperCore valMC
 			,SequenceInterval interval,Handler handler,Manager mgr){
-		
 		sequence = interval.start;
 		currentoffset = interval.startOffset;
 		this.mgr = mgr;

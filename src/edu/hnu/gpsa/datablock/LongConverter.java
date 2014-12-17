@@ -28,8 +28,8 @@ public class LongConverter implements BytesToValueConverter<Long> {
 
 	@Override
 	public Long getValue(byte[] array, int left, int right) {
-		// TODO Auto-generated method stub
-		return null;
+		return ((long) (array[left] & 0xff) << 56) + ((long) (array[left+1] & 0xff) << 48) + ((long) (array[left+2] & 0xff) << 40) + ((long) (array[left+3] & 0xff) << 32)
+				+ ((long) (array[left+4] & 0xff) << 24) + ((long) (array[left+5] & 0xff) << 16) + ((long) (array[left+6] & 0xff) << 8) + ((long) array[left+7] & 0xff);
 	}
 
 }

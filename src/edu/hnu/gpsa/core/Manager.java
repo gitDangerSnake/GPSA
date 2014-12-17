@@ -51,10 +51,12 @@ public class Manager extends Task {
 		this.currIte = 0;
 		this.endIte = endIte;
 		graph = new Graph(graphFilename, "edgelist", eConv, vConv, mConv, null);
+		graph.preprocess();
 		maxid = Graph.MAXID;
 		bits = new BitSet(maxid);
+		
 
-		int sizeOfVal = GlobalVaribaleManager.vConv.sizeOf();
+		int sizeOfVal = vConv.sizeOf();
 		File csrfile = new File(Filename.csrFilename(graphFilename));
 		File valfile = new File(Filename.vertexValueFilename(graphFilename));
 		valfile.delete();
@@ -70,14 +72,14 @@ public class Manager extends Task {
 		valTemp = null;
 		for (int i = 0; i < maxid; i++) {
 			val = handler.init(i);
-			GlobalVaribaleManager.vConv.setValue(valTemp, val);
+			vConv.setValue(valTemp, val);
 			System.arraycopy(valTemp, 0, writeTemp, 0, sizeOfVal);
 			System.arraycopy(valTemp, 0, writeTemp, sizeOfVal, sizeOfVal);
 			valMC.put(i * sizeOfVal * 2, writeTemp);
 		}
 
-		GlobalVaribaleManager.init(csrMC, valMC, vConv, eConv, mConv);
 
+		GlobalVaribaleManager.init(csrMC, valMC, vConv, eConv, mConv);
 	}
 
 	public void initWorker() throws IOException {
@@ -134,6 +136,7 @@ public class Manager extends Task {
 		}
 
 		for (int i = 0; i < ndispatcher; i++) {
+			System.out.println(sequenceIntervals[1]);
 			dws[i] = new DispatcherWorker(csrMC, valMC, sequenceIntervals[i],
 					handler, this);
 			dws[i].start();
@@ -146,6 +149,7 @@ public class Manager extends Task {
 		int dispatcher_counter = 0;
 		int computer_counter = 0;
 		
+		long start = System.currentTimeMillis();
 		while (currIte < endIte) {
 			activeDispatcherWorker();
 
@@ -166,6 +170,8 @@ public class Manager extends Task {
 			}
 			PINGPANG = !PINGPANG;
 		}
+		System.out.println("Time :" + (System.currentTimeMillis()-start) +" ms");
+		System.exit(0);
 	}
 
 	private void intervene() {
@@ -177,6 +183,7 @@ public class Manager extends Task {
 
 	private void activeDispatcherWorker() throws Pausable {
 		for (int i = 0; i < dws.length; i++) {
+			
 			dws[i].putSignal(Signal.MANAGER_ITERATION_START);
 		}
 	}
@@ -213,6 +220,11 @@ public class Manager extends Task {
 	public void noteDispatch(Signal dispatcherIterationDispatchOver)
 			throws Pausable {
 		dispatcherMailbox.put(dispatcherIterationDispatchOver);
+	}
+	
+	public void run() throws IOException{
+		graph.preprocess();
+		initWorker();
 	}
 
 }

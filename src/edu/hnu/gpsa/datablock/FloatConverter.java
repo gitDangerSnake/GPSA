@@ -25,8 +25,8 @@ public class FloatConverter implements BytesToValueConverter<Float> {
 
 	@Override
 	public Float getValue(byte[] array, int left, int right) {
-		// TODO Auto-generated method stub
-		return null;
+		int x = ((array[left] & 0xff) << 24) + ((array[left+1] & 0xff) << 16) + ((array[left+2] & 0xff) << 8) + (array[left+3] & 0xff);
+		return Float.intBitsToFloat(x);
 	}
 
 	
