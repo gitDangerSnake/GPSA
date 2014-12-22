@@ -23,7 +23,7 @@ public class MapperCore {
 	public MapperCore(File file, long size) throws IOException {
 		// This is a for testing - to avoid the disk filling up
 		coreFile = file;
-		coreFile.deleteOnExit();
+//		coreFile.deleteOnExit();
 		// Now create the actual file
 		coreFileAccessor = new RandomAccessFile(coreFile, "rw");
 		FileChannel channelMapper = coreFileAccessor.getChannel();
@@ -149,6 +149,7 @@ public class MapperCore {
 
 			}
 		} catch (IndexOutOfBoundsException i) {
+			System.out.println(offset);
 			throw new IOException("Out of bounds");
 		}
 		return val;

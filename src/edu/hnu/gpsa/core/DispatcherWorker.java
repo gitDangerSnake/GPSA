@@ -10,20 +10,21 @@ import kilim.Task;
 
 public class DispatcherWorker extends Task {
 
-	
+	private static int counter = 0;
+	private int did=counter++;
 	
 	private int currentoffset;
 	private SequenceInterval interval;
 	private Object val;
 
-	Mailbox<Signal> signals = new Mailbox<Signal>(3, 3);
+	Mailbox<Signal> signals = new Mailbox<Signal>(3);
 
 	private int sequence;
 	private Handler handler;
 	private Manager mgr;
 	
-	public DispatcherWorker(MapperCore csrMC,MapperCore valMC
-			,SequenceInterval interval,Handler handler,Manager mgr){
+	public DispatcherWorker(SequenceInterval interval,Handler handler,Manager mgr){
+		this.interval = interval;
 		sequence = interval.start;
 		currentoffset = interval.startOffset;
 		this.mgr = mgr;
@@ -42,8 +43,9 @@ public class DispatcherWorker extends Task {
 		++sequence;
 	}
 
-	public void sequenceReset() {
+	public void sequenceReset(){
 		sequence = interval.start;
+		
 	}
 
 	public void restAndStart() {
@@ -53,7 +55,7 @@ public class DispatcherWorker extends Task {
 
 	public void execute() throws Pausable, IOException {
 		val = handler.init(sequence);
-		Signal s = null;
+		Signal s = Signal.MANAGER_ITERATION_START;
 		byte[] msg = null;
 		int lastDest = -1;
 		int dest = -1;
@@ -62,18 +64,32 @@ public class DispatcherWorker extends Task {
 		int lastSequence = -1;
 		int i=0;
 		int tos=0;
+		boolean flag = false;
 		Stack<Integer> stack = new Stack<Integer>();
 		int sizeOfM = GlobalVaribaleManager.mConv.sizeOf();
 		int sizeOfV = GlobalVaribaleManager.vConv.sizeOf();
 
-		while ((s = signals.get()) != Signal.SYSTEM_OVER) {
+		while (s != Signal.SYSTEM_OVER) {
+			
 			restAndStart();
-
+			offset = index(lastSequence, 0);
+			getValue(offset);
+			
 			lastSequence = sequence;
 			while (currentoffset < interval.endOffset) {
 
+//				System.out.println("Worker " + did +" start processing " + sequence);
 				while ((vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) == -1) {
 					sequenceIncrement();
+					offsetIncrement();
+					if(currentoffset == interval.endOffset) {
+						flag = true;
+						break;
+					}
+				}
+				if(flag){
+					flag = false;
+					break;
 				}
 
 				if (lastSequence != sequence) {
@@ -107,6 +123,7 @@ public class DispatcherWorker extends Task {
 							// send message
 							mgr.send(lastDest, msg);
 
+						
 							lastDest = dest;
 							stack.push(vid);
 
@@ -117,8 +134,11 @@ public class DispatcherWorker extends Task {
 				offsetIncrement();
 			}
 
+//			System.out.println("current iteration dispatch finished notify manager" );
 			// 通知manager，本迭代的分发任务完成
 			mgr.noteDispatch(Signal.DISPATCHER_ITERATION_DISPATCH_OVER);
+//			System.out.println("success notify manager");
+			s = signals.get();
 		}
 	}
 

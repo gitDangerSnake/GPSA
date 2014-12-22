@@ -31,8 +31,8 @@ public class Manager extends Task {
 	int endIte;
 	Handler handler;
 
-	Mailbox<Signal> computerMailbox = new Mailbox<Signal>(ncomputer, ncomputer);
-	Mailbox<Signal> dispatcherMailbox = new Mailbox<Signal>(ndispatcher, ndispatcher);
+	Mailbox<Signal> computerMailbox = new Mailbox<Signal>(ncomputer+1, ncomputer+1);
+	Mailbox<Signal> dispatcherMailbox = new Mailbox<Signal>(ndispatcher+1, ndispatcher+3);
 
 	private MapperCore csrMC;
 
@@ -52,8 +52,10 @@ public class Manager extends Task {
 		this.endIte = endIte;
 		graph = new Graph(graphFilename, "edgelist", eConv, vConv, mConv, null);
 		graph.preprocess();
+		Manager.nedges = graph.getNumEdges();
 		maxid = Graph.MAXID;
-		bits = new BitSet(maxid);
+		bits = new BitSet(maxid+1);
+		this.handler = handler;
 		
 
 		int sizeOfVal = vConv.sizeOf();
@@ -63,14 +65,13 @@ public class Manager extends Task {
 		valfile.createNewFile();
 
 		csrMC = new MapperCore(csrfile, csrfile.length());
-		valMC = new MapperCore(valfile, maxid * 2 * sizeOfVal);
+		valMC = new MapperCore(valfile, (maxid+1) * 2 * sizeOfVal);
 
 		byte[] valTemp = new byte[sizeOfVal];
 		Object val = null;
 		byte[] writeTemp = new byte[sizeOfVal * 2];
 
-		valTemp = null;
-		for (int i = 0; i < maxid; i++) {
+		for (int i = 0; i <= maxid; i++) {
 			val = handler.init(i);
 			vConv.setValue(valTemp, val);
 			System.arraycopy(valTemp, 0, writeTemp, 0, sizeOfVal);
@@ -78,16 +79,28 @@ public class Manager extends Task {
 			valMC.put(i * sizeOfVal * 2, writeTemp);
 		}
 
+		valTemp = null;
 
 		GlobalVaribaleManager.init(csrMC, valMC, vConv, eConv, mConv);
 	}
 
 	public void initWorker() throws IOException {
 
-		assignDispatchWork(ndispatcher, nedges, csrMC);
 
+		assignComputeWork();
+		assignDispatchWork(ndispatcher, nedges, csrMC);
+	}
+	
+	public void assignComputeWork(){
+		int averg_per_computer = 0;
+		if((maxid + 1)% ncomputer == 0){
+			averg_per_computer  = (maxid+1) / ncomputer;
+		}else{
+			averg_per_computer  = (maxid+1) / ncomputer +1;
+		}
+		
 		for (int i = 0; i < ncomputer; i++) {
-			cws[i] = new ComputerWorker(handler, this);
+			cws[i] = new ComputerWorker(handler, averg_per_computer,this);
 			cws[i].start();
 		}
 	}
@@ -108,8 +121,10 @@ public class Manager extends Task {
 		int right_offset = 0;
 		int counter = 0;
 		int k = 0;
+		
+		long limit = mc.getSize();
 
-		while (right_offset < mc.getSize()) {
+		while (right_offset <limit) {
 			int to = mc.getInt(right_offset);
 			if (to == -1) {
 				right_sequence++;
@@ -126,6 +141,7 @@ public class Manager extends Task {
 				while (mc.getInt(right_offset) == -1) {
 					right_sequence++;
 					right_offset += 4;
+					if(right_offset == limit) break;
 				}
 			}
 		}
@@ -136,9 +152,7 @@ public class Manager extends Task {
 		}
 
 		for (int i = 0; i < ndispatcher; i++) {
-			System.out.println(sequenceIntervals[1]);
-			dws[i] = new DispatcherWorker(csrMC, valMC, sequenceIntervals[i],
-					handler, this);
+			dws[i] = new DispatcherWorker(sequenceIntervals[i], handler, this);
 			dws[i].start();
 		}
 	}
@@ -151,24 +165,35 @@ public class Manager extends Task {
 		
 		long start = System.currentTimeMillis();
 		while (currIte < endIte) {
-			activeDispatcherWorker();
+System.out.println("manager said : new iteration "+ currIte);
+		activeDispatcherWorker();
 
-			while ((s = dispatcherMailbox.get()) != null) {
+System.out.println("manager said : dispatcherWorker actived.. ");
+			while (true) {
+				s = dispatcherMailbox.get();
 				if (s == Signal.DISPATCHER_ITERATION_DISPATCH_OVER)
 					dispatcher_counter++;
-				if (dispatcher_counter == ndispatcher)
+//System.out.println("manager said : "+ dispatcher_counter+" dipatchers has finished..");				
+				if (dispatcher_counter == ndispatcher){
+					dispatcher_counter = 0;
 					break;
+				}
 			}
-
 			intervene();
+System.out.println("Manager said : successful intervene computer..");
 
-			while ((s = computerMailbox.get()) != null) {
-				if (s == Signal.DISPATCHER_ITERATION_COMPUTE_OVER)
+			while (true) {
+				s = computerMailbox.get();
+				if (s == Signal.COMPUTER_COMPUTE_OVER)
 					computer_counter++;
-				if (computer_counter == ncomputer)
+//System.out.println("manager said : "+ computer_counter +" computers has finished..");				
+				if (computer_counter == ncomputer){
+					computer_counter = 0;
 					break;
+				}
 			}
 			PINGPANG = !PINGPANG;
+			currIte++;
 		}
 		System.out.println("Time :" + (System.currentTimeMillis()-start) +" ms");
 		System.exit(0);
@@ -183,13 +208,15 @@ public class Manager extends Task {
 
 	private void activeDispatcherWorker() throws Pausable {
 		for (int i = 0; i < dws.length; i++) {
-			
+//			System.out.println("send iteration start signal to dispatcher worker " + i + " at iteration " + currIte);
 			dws[i].putSignal(Signal.MANAGER_ITERATION_START);
 		}
 	}
 
 	public void send(int id, byte[] msg) {
-		cws[id].putMsg(msg);
+		if(id > -1 && id < cws.length){
+			cws[id].putMsg(msg);
+		}
 	}
 
 	public long index(int to, int type) {
@@ -223,8 +250,8 @@ public class Manager extends Task {
 	}
 	
 	public void run() throws IOException{
-		graph.preprocess();
 		initWorker();
+		start();
 	}
 
 }

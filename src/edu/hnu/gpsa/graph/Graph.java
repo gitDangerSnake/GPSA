@@ -145,6 +145,7 @@ public class Graph<V, E, M> {
 			numEdges = Integer.valueOf(infos[1]);
 			br.close();
 		}
+		System.out.println("graph hello");
 
 	}
 

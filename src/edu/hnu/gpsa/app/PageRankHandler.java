@@ -2,27 +2,23 @@ package edu.hnu.gpsa.app;
 
 import edu.hnu.gpsa.core.Handler;
 
-public class ConnectedComponentHandler implements Handler{
+public class PageRankHandler implements Handler {
 
 	@Override
 	public Object init(int sequence) {
-		return sequence;
+		return 1.0f;
 	}
 
 
 	@Override
 	public Object compute(Object val, Object mVal) {
-		int v1 = (int)val;
-		int v2 = (int)mVal;
-		if( v2 < v1){
-			return mVal ;
-		}
-		return val;
+		// TODO Auto-generated method stub
+		return (float)((float)val + 0.85*(float)mVal);
 	}
 
 	@Override
 	public boolean isUpdated(Object newVal, Object oldVal) {
-		return (int)newVal != (int)oldVal;
+		return true;
 	}
 
 }
