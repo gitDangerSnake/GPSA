@@ -18,6 +18,10 @@ public class Filename {
 		return graphfile+".csr.mem";
 	}
 	
+	public static String graphInfoFilename(String graphFile){
+		return graphFile + ".info";
+	}
+	
 	/*
 	 * 图的顶点value的内存映射文件
 	 */

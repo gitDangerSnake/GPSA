@@ -44,12 +44,13 @@ public class Graph<V, E, M> {
 	private EdgeProcessor<E> edgeProcessor;
 	private byte[] edgeValueTemplate;
 	private DataOutputStream shovelWriter;
+	private boolean isOutDegreeMatters;
 
 	public Graph(String graphFilename, String format,
 			BytesToValueConverter<E> edgeValueTypeBytesToValueConverter,
 			BytesToValueConverter<V> verterxValueTypeBytesToValueConverter,
 			BytesToValueConverter<M> msgValueTypeBytesToValueConverter,
-			EdgeProcessor<E> edgeProcessor) throws FileNotFoundException {
+			EdgeProcessor<E> edgeProcessor,boolean isOutDegreematters) throws FileNotFoundException {
 
 		this.graphFilename = graphFilename;
 
@@ -76,6 +77,7 @@ public class Graph<V, E, M> {
 		 * } else { vertexValueTemplate = new byte[0]; }
 		 */
 
+		this.isOutDegreeMatters = isOutDegreematters;
 	}
 
 	public String getGraphFilename() {
@@ -87,7 +89,7 @@ public class Graph<V, E, M> {
 	 * */
 	public void preprocess() throws IOException {
 		File memfile = new File(Filename.csrFilename(graphFilename));
-		File infofile = new File("graphinfo");
+		File infofile = new File(Filename.graphInfoFilename(graphFilename));
 		if (!memfile.exists() || !infofile.exists()) {
 			memfile.delete();
 			infofile.delete();
@@ -145,7 +147,6 @@ public class Graph<V, E, M> {
 			numEdges = Integer.valueOf(infos[1]);
 			br.close();
 		}
-		System.out.println("graph hello");
 
 	}
 
@@ -228,7 +229,10 @@ public class Graph<V, E, M> {
 						currentSequence++;
 					}
 
-//					int outdegree = s - isstart;
+					if(	isOutDegreeMatters){
+						int outdegree = s - isstart;
+						dos.writeInt(outdegree);
+					}
 					while (isstart < s) {
 						int to = Helper.getSecond(edges[isstart]);
 						if (to > MAXID)
@@ -252,6 +256,11 @@ public class Graph<V, E, M> {
 				dos.writeInt(-1);
 				currentSequence++;
 			}
+			
+			if(	isOutDegreeMatters){
+				int outdegree = edges.length - isstart;
+				dos.writeInt(outdegree);
+			}
 
 			while (isstart < edges.length) {
 				dos.writeInt(Helper.getSecond(edges[isstart]));
@@ -262,7 +271,7 @@ public class Graph<V, E, M> {
 		dos.flush();
 		dos.close();
 		
-		BufferedWriter bw  = new BufferedWriter(new FileWriter("graphinfo"));
+		BufferedWriter bw  = new BufferedWriter(new FileWriter(Filename.graphInfoFilename(graphFilename)));
 		bw.write(MAXID +" "+numEdges);
 		bw.flush();
 		bw.close();
@@ -278,13 +287,19 @@ public class Graph<V, E, M> {
 
 	public static void main(String[] args) throws IOException {
 		Graph<Integer, Integer, Integer> graph = new Graph<Integer, Integer, Integer>(
-				"google", "edgelist", null, null, null, null);
+				"google", "edgelist", null, null, null, null,true);
 		graph.preprocess();
 
 		RandomAccessFile raf = new RandomAccessFile(new File(
 				Filename.csrFilename("google")), "rw");
 		FileChannel fc = raf.getChannel();
 		ByteBuffer bb = fc.map(MapMode.READ_ONLY, 0, raf.length());
+		
+		while(bb.hasRemaining()){
+			System.out.println(bb.getInt());
+		}
+		
+		bb.position(0);
 		int sequence = 0;
 		boolean flag = true;
 		System.out.print(sequence + ": [");

@@ -11,7 +11,7 @@ public class BFS {
 	public static void main(String[] args) throws IOException {
 		IntConverter ic = new IntConverter();
 		Handler handler = new BFSHandler();
-		Manager mgr = new Manager("/home/labserver/CG/google", ic, null, ic, 256, 4096, 5, handler);
+		Manager mgr = new Manager("/home/labserver/CG/google", ic, null, ic, 256, 4096, 5, handler,false);
 		mgr.run();
 	}
 }

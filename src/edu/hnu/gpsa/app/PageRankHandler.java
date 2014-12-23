@@ -21,4 +21,10 @@ public class PageRankHandler implements Handler {
 		return true;
 	}
 
+
+	@Override
+	public Object msgVal(Object val, int outdegree, Object object) {
+		return (float)((float)val / outdegree);
+	}
+
 }

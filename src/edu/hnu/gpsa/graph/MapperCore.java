@@ -19,11 +19,10 @@ public class MapperCore {
 	private File coreFile;
 	private RandomAccessFile coreFileAccessor;
 
-
 	public MapperCore(File file, long size) throws IOException {
 		// This is a for testing - to avoid the disk filling up
 		coreFile = file;
-//		coreFile.deleteOnExit();
+		// coreFile.deleteOnExit();
 		// Now create the actual file
 		coreFileAccessor = new RandomAccessFile(coreFile, "rw");
 		FileChannel channelMapper = coreFileAccessor.getChannel();
@@ -41,8 +40,6 @@ public class MapperCore {
 			countDown -= len;
 		}
 	}
-
-
 
 	public byte[] get(long offset, int size) throws IOException {
 		// Quick and dirty but will go wrong for massive numbers
@@ -128,7 +125,7 @@ public class MapperCore {
 			if (TWOGIG - withinChunk > 4) {
 				ByteBuffer chunk = chunks.get((int) whichChunk);
 				// Allows free threading
-				val = chunk.getInt((int)withinChunk);
+				val = chunk.getInt((int) withinChunk);
 			} else {
 				int l1 = (int) (TWOGIG - withinChunk);
 				ByteBuffer chunk = chunks.get((int) whichChunk);
@@ -165,7 +162,7 @@ public class MapperCore {
 			if (TWOGIG - withinChunk > 4) {
 				ByteBuffer chunk = chunks.get((int) whichChunk);
 				// Allows free threading
-				chunk.putInt((int)withinChunk,val);
+				chunk.putInt((int) withinChunk, val);
 			} else {
 				int l1 = (int) (TWOGIG - withinChunk);
 				ByteBuffer chunk = chunks.get((int) whichChunk);
@@ -192,6 +189,11 @@ public class MapperCore {
 		putInt(offset, x);
 	}
 
+	public void putNegFloat(long offset, float val) {
+		int x = Float.floatToIntBits(val);
+		putInt(offset, (x | 0x80_00_00_00));
+	}
+
 	public float getFloat(long offset) throws IOException {
 		int x = getInt(offset);
 		return Float.intBitsToFloat(x);
@@ -207,7 +209,7 @@ public class MapperCore {
 			if (TWOGIG - withinChunk > 8) {
 				ByteBuffer chunk = chunks.get((int) whichChunk);
 				// Allows free threading
-				chunk.putLong((int)withinChunk,val);
+				chunk.putLong((int) withinChunk, val);
 			} else {
 				int l1 = (int) (TWOGIG - withinChunk);
 				ByteBuffer chunk = chunks.get((int) whichChunk);
@@ -239,7 +241,7 @@ public class MapperCore {
 		try {
 			if (TWOGIG - withinChunk > 8) {
 				ByteBuffer chunk = chunks.get((int) whichChunk);
-				val = chunk.getLong((int)withinChunk);
+				val = chunk.getLong((int) withinChunk);
 			} else {
 				int l1 = (int) (TWOGIG - withinChunk);
 				ByteBuffer chunk = chunks.get((int) whichChunk);
@@ -265,15 +267,20 @@ public class MapperCore {
 		return val;
 	}
 
-	public void putDouble(long offset,double val){
+	public void putDouble(long offset, double val) {
 		long x = Double.doubleToLongBits(val);
 		putLong(offset, x);
 	}
-	public double getDouble(long offset) throws IOException{
+
+	public void putNegDouble(long offset,double val){
+		long x = Double.doubleToLongBits(val);
+		putLong(offset, (x | 0x80_00_00_00_00_00_00_00L));
+	}
+	public double getDouble(long offset) throws IOException {
 		long x = getLong(offset);
 		return Double.longBitsToDouble(x);
 	}
-	
+
 	public void purge() {
 		if (coreFileAccessor != null) {
 			try {

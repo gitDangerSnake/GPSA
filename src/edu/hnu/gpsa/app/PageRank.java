@@ -16,7 +16,7 @@ public class PageRank {
 		// TODO Auto-generated method stub
 		FloatConverter fc = new FloatConverter();
 		Handler handler = new PageRankHandler();
-		Manager mgr = new Manager("/home/labserver/CG/google", fc, null, fc, 256, 2048, 4, handler);
+		Manager mgr = new Manager("/home/labserver/CG/google", fc, null, fc, 256, 2048, 4, handler,true);
 		mgr.run();
 	}
 

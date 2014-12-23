@@ -23,4 +23,10 @@ public class BFSHandler implements Handler{
 		return (int)newVal != (int)oldVal;
 	}
 
+	@Override
+	public Object msgVal(Object val, int outdegree, Object object) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }

@@ -11,8 +11,8 @@ import kilim.Task;
 public class DispatcherWorker extends Task {
 
 	private static int counter = 0;
-	private int did=counter++;
-	
+	private int did = counter++;
+
 	private int currentoffset;
 	private SequenceInterval interval;
 	private Object val;
@@ -22,13 +22,17 @@ public class DispatcherWorker extends Task {
 	private int sequence;
 	private Handler handler;
 	private Manager mgr;
-	
-	public DispatcherWorker(SequenceInterval interval,Handler handler,Manager mgr){
+	boolean isOutdegreeMatters;
+	private boolean isWeightMatters;
+
+	public DispatcherWorker(SequenceInterval interval, Handler handler,
+			boolean isOutdegreeMatters, Manager mgr) {
 		this.interval = interval;
 		sequence = interval.start;
 		currentoffset = interval.startOffset;
 		this.mgr = mgr;
 		this.handler = handler;
+		this.isOutdegreeMatters = isOutdegreeMatters;
 	}
 
 	public void offsetIncrement() {
@@ -43,9 +47,9 @@ public class DispatcherWorker extends Task {
 		++sequence;
 	}
 
-	public void sequenceReset(){
+	public void sequenceReset() {
 		sequence = interval.start;
-		
+
 	}
 
 	public void restAndStart() {
@@ -53,6 +57,7 @@ public class DispatcherWorker extends Task {
 		offsetReset();
 	}
 
+	@SuppressWarnings("unchecked")
 	public void execute() throws Pausable, IOException {
 		val = handler.init(sequence);
 		Signal s = Signal.MANAGER_ITERATION_START;
@@ -62,71 +67,157 @@ public class DispatcherWorker extends Task {
 		long offset = 0;
 		int vid = -1;
 		int lastSequence = -1;
-		int i=0;
-		int tos=0;
-		boolean flag = false;
+		int i = 0;
+		int tos = 0;
+		boolean overFlag = false;
+		boolean inData = false;
 		Stack<Integer> stack = new Stack<Integer>();
 		int sizeOfM = GlobalVaribaleManager.mConv.sizeOf();
 		int sizeOfV = GlobalVaribaleManager.vConv.sizeOf();
+		int outdegree = 0;
+		Object msgVal = null;
+
+		// TO DO : add logic to process outdegrees
 
 		while (s != Signal.SYSTEM_OVER) {
-			
+
 			restAndStart();
 			offset = index(lastSequence, 0);
 			getValue(offset);
-			
+
 			lastSequence = sequence;
 			while (currentoffset < interval.endOffset) {
+				
+				
 
-//				System.out.println("Worker " + did +" start processing " + sequence);
-				while ((vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) == -1) {
-					sequenceIncrement();
-					offsetIncrement();
-					if(currentoffset == interval.endOffset) {
-						flag = true;
+				if (isOutdegreeMatters) {
+
+					while ((vid = GlobalVaribaleManager.csrMC
+							.getInt(currentoffset)) == -1) {
+						sequenceIncrement();
+						offsetIncrement();
+						if (inData) {
+							inData = false;
+						}
+						if (currentoffset == interval.endOffset) {
+							overFlag = true;
+							break;
+						}
+					}
+
+					if (overFlag) {
+						overFlag = false;
 						break;
 					}
-				}
-				if(flag){
-					flag = false;
-					break;
-				}
 
-				if (lastSequence != sequence) {
+					if (!inData) {
+						inData = true;
+						outdegree = vid;
+						continue;
+					}
+					if (isWeightMatters) {
+						
+						
+
+					} else {
+						if (lastSequence != sequence) {
+							offset = index(lastSequence, 0);
+							getValue(offset);
+							tos = stack.size();
+							msg = new byte[tos * 4 + sizeOfM];
+							msgVal = handler.msgVal(val,outdegree,null);
+							GlobalVaribaleManager.mConv.setValue(msg, msgVal);
+							for (i = 0; i < tos; ++i) {
+								GlobalVaribaleManager.iConv.setValue(msg,
+										stack.pop(), sizeOfM + i * 4);
+							}
+							// send message
+							mgr.send(lastDest, msg);
+							lastSequence = sequence;
+
+						} else {
+							if (lastDest == -1) {
+								lastDest = locate(vid);
+								stack.push(vid);
+							} else {
+								dest = locate(vid);
+								if (dest == lastDest) {
+									stack.push(vid);
+								} else {
+									tos = stack.size();
+									msg = new byte[tos * 4 + sizeOfM];
+									GlobalVaribaleManager.mConv.setValue(msg,msgVal);
+									for (i = 0; i < tos; i++) {
+										GlobalVaribaleManager.iConv.setValue(
+												msg, stack.pop(), sizeOfM + i
+														* 4);
+									}
+									// send message
+									mgr.send(lastDest, msg);
+
+									lastDest = dest;
+									stack.push(vid);
+
+								}
+							}
+						}
+
+					}
+				} else {
+
+					// System.out.println("Worker " + did +" start processing "
+					// + sequence);
+					while ((vid = GlobalVaribaleManager.csrMC
+							.getInt(currentoffset)) == -1) {
+						sequenceIncrement();
+						offsetIncrement();
+						if (currentoffset == interval.endOffset) {
+							overFlag = true;
+							break;
+						}
+					}
+					if (overFlag) {
+						overFlag = false;
+						break;
+					}
+
+					if (lastSequence != sequence) {
 						offset = index(lastSequence, 0);
 						getValue(offset);
 						tos = stack.size();
 						msg = new byte[tos * 4 + sizeOfM];
 						GlobalVaribaleManager.mConv.setValue(msg, val);
 						for (i = 0; i < tos; ++i) {
-							GlobalVaribaleManager.iConv.setValue(msg, stack.pop(), sizeOfM + i * 4);
+							GlobalVaribaleManager.iConv.setValue(msg,
+									stack.pop(), sizeOfM + i * 4);
 						}
 						// send message
 						mgr.send(lastDest, msg);
 						lastSequence = sequence;
 
-				} else {
-					if (lastDest == -1) {
-						lastDest = locate(vid);
-						stack.push(vid);
 					} else {
-						dest = locate(vid);
-						if (dest == lastDest) {
+						if (lastDest == -1) {
+							lastDest = locate(vid);
 							stack.push(vid);
 						} else {
-							tos = stack.size();
-							msg = new byte[tos * 4 + sizeOfM];
-							GlobalVaribaleManager.mConv.setValue(msg, val);
-							for (i = 0; i < tos; i++) {
-								GlobalVaribaleManager.iConv.setValue(msg, stack.pop(), sizeOfM + i * 4);
+							dest = locate(vid);
+							if (dest == lastDest) {
+								stack.push(vid);
+							} else {
+								tos = stack.size();
+								msg = new byte[tos * 4 + sizeOfM];
+								GlobalVaribaleManager.mConv.setValue(msg, val);
+								for (i = 0; i < tos; i++) {
+									GlobalVaribaleManager.iConv.setValue(msg,
+											stack.pop(), sizeOfM + i * 4);
+								}
+								// send message
+								mgr.send(lastDest, msg);
+
+								lastDest = dest;
+								stack.push(vid);
+
 							}
-							// send message
-							mgr.send(lastDest, msg);
-
-						
-							lastDest = dest;
-							stack.push(vid);
-
 						}
 					}
 				}
@@ -134,10 +225,11 @@ public class DispatcherWorker extends Task {
 				offsetIncrement();
 			}
 
-//			System.out.println("current iteration dispatch finished notify manager" );
+			// System.out.println("current iteration dispatch finished notify manager"
+			// );
 			// 通知manager，本迭代的分发任务完成
 			mgr.noteDispatch(Signal.DISPATCHER_ITERATION_DISPATCH_OVER);
-//			System.out.println("success notify manager");
+			// System.out.println("success notify manager");
 			s = signals.get();
 		}
 	}
@@ -153,13 +245,14 @@ public class DispatcherWorker extends Task {
 		} else if (val instanceof Float) {
 			val = GlobalVaribaleManager.valMC.getFloat(offset);
 		} else {
-			byte[] data = GlobalVaribaleManager.valMC.get(0, GlobalVaribaleManager.vConv.sizeOf());
+			byte[] data = GlobalVaribaleManager.valMC.get(0,
+					GlobalVaribaleManager.vConv.sizeOf());
 			val = GlobalVaribaleManager.vConv.getValue(data);
 		}
 	}
 
 	public int locate(int id) {
-		return id * Manager.ncomputer / (Manager.maxid+1);
+		return id * Manager.ncomputer / (Manager.maxid + 1);
 	}
 
 	public void putSignal(Signal managerIterationStart) throws Pausable {
