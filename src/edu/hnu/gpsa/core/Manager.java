@@ -117,18 +117,18 @@ public class Manager extends Task {
 		} else {
 			averg_per_dispatcher = nedges / ndispatcher + 1;
 		}
-		System.out.println(averg_per_dispatcher);
 
 		int left_sequence = 0;
 		int right_sequence = 0;
 		int left_offset = 0;
 		int right_offset = 0;
-		int counter = 0;
+		int icounter = 0;
 		int k = 0;
 
 		long limit = mc.getSize();
 		int to = -1;
 		int lastTo = -1;
+		
 
 		if (isOutdegreeMatters) {
 			while (right_offset < limit) {
@@ -136,15 +136,18 @@ public class Manager extends Task {
 				right_offset+=4;
 
 				if (lastTo == -1 && to != -1) {					
+					lastTo = to;
 					continue;
 				} else {
 					if (to == -1) {
 						right_sequence++;
-						if(counter >= averg_per_dispatcher){
+
+						if(icounter >= averg_per_dispatcher){
+
 							sequenceIntervals[k++] = new SequenceInterval(
 									left_sequence, right_sequence, left_offset,
 									right_offset);
-							counter = 0;
+							icounter = 0;
 							left_offset = right_offset;
 							left_sequence = right_sequence;
 							while (mc.getInt(right_offset) == -1) {
@@ -158,14 +161,14 @@ public class Manager extends Task {
 						}
 						
 					} else {
-						counter++;
+						icounter++;
 					}
 					lastTo = to;
 					
 				}
 			}
 			
-			if(left_sequence < right_sequence){
+			if(k<ndispatcher){
 				sequenceIntervals[k] = new SequenceInterval(left_sequence,
 						right_sequence, left_offset, right_offset);
 			}
@@ -175,16 +178,17 @@ public class Manager extends Task {
 			while (right_offset < limit) {
 
 				to = mc.getInt(right_offset);
+//				System.out.println(to);
 				right_offset += 4;
 				if (to == -1) {
 					right_sequence++;
-					if(counter >= averg_per_dispatcher){
-						System.out.println("current k is" + k + " current counter is" + counter);
+//						System.out.println("current k is----" + k + " current counter is ----" + icounter);
+					if(icounter >= averg_per_dispatcher){
 
 						sequenceIntervals[k++] = new SequenceInterval(
 								left_sequence, right_sequence, left_offset,
 								right_offset);
-						counter = 0;
+						icounter = 0;
 						left_offset = right_offset;
 						left_sequence = right_sequence;
 						while (mc.getInt(right_offset) == -1) {
@@ -197,13 +201,14 @@ public class Manager extends Task {
 						}
 					}
 				} else {
-					counter++;
+					icounter++;
 				}
 				
 				
 			}
 			
-			if(left_sequence < right_sequence){
+			if(k < ndispatcher){
+				System.out.println(left_sequence + " " + right_sequence+"---"+k);
 				sequenceIntervals[k] = new SequenceInterval(left_sequence,
 						right_sequence, left_offset, right_offset);
 			}
@@ -212,7 +217,6 @@ public class Manager extends Task {
 			
 		}
 
-		System.out.println("k == dispatcher ?" + (k==ndispatcher));
 		
 		for (int i = 0; i < ndispatcher; i++) {
 			System.out.println(sequenceIntervals[i]);

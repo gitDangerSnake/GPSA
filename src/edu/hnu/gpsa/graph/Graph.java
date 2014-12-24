@@ -291,13 +291,11 @@ public class Graph<V, E, M> {
 		graph.preprocess();
 
 		RandomAccessFile raf = new RandomAccessFile(new File(
-				Filename.csrFilename("google")), "rw");
+				Filename.csrFilename("/home/labserver/CG/google")), "rw");
 		FileChannel fc = raf.getChannel();
 		ByteBuffer bb = fc.map(MapMode.READ_ONLY, 0, raf.length());
 		
-		while(bb.hasRemaining()){
-			System.out.println(bb.getInt());
-		}
+		
 		
 		bb.position(0);
 		int sequence = 0;

@@ -92,8 +92,6 @@ public class ComputerWorker extends Task {
 					newVal = handler.compute(val, mVal);
 					lastVal = newVal;
 					lastTo = to;
-					if(to == 5 )
-						System.out.println("new value is "+ newVal + " old value is "+val +" "+handler.isUpdated(val, newVal));
 
 					// 写入value
 					if (handler.isUpdated(val, newVal)) {

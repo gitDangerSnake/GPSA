@@ -87,7 +87,7 @@ public class DispatcherWorker extends Task {
 
 					value(sequence);
 
-					if (isUnupdated()) { // 如果该sequence处的顶点在上一个超步中没有发生更新则跳过，进入下一个sequence的数据区
+					if ((float)val<0) { // 如果该sequence处的顶点在上一个超步中没有发生更新则跳过，进入下一个sequence的数据区
 						while (currentoffset < interval.endOffset && (vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) != -1) {
 							offsetIncrement();
 						}
@@ -135,7 +135,10 @@ public class DispatcherWorker extends Task {
 								msgVal = handler.msgVal(val, outdegree, null);
 								GlobalVaribaleManager.mConv.setValue(msg, msgVal);
 								for (i = 0; i < tos; i++) {
-									GlobalVaribaleManager.iConv.setValue(msg, stack.pop(), sizeOfM + i * 4);
+									int t = stack.pop();
+									GlobalVaribaleManager.iConv.setValue(msg, t, sizeOfM + i * 4);
+//									System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + msgVal);
+
 								}
 								// send message
 								mgr.send(lastDest, msg);
@@ -162,8 +165,8 @@ public class DispatcherWorker extends Task {
 										for (i = 0; i < tos; i++) {
 											int t = stack.pop();
 											GlobalVaribaleManager.iConv.setValue(msg, t, sizeOfM + i * 4);
-											if (0 == did)
-												System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + val);
+//									if (0 == did)
+//										System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + val);
 										}
 										// send message
 										mgr.send(lastDest, msg);
@@ -181,8 +184,8 @@ public class DispatcherWorker extends Task {
 								for (i = 0; i < tos; i++) {
 									int t = stack.pop();
 									GlobalVaribaleManager.iConv.setValue(msg, t, sizeOfM + i * 4);
-									if (0 == did)
-										System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + val);
+//									if (0 == did)
+//										System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + val);
 
 								}
 								// send message
