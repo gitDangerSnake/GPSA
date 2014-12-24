@@ -14,8 +14,12 @@ public class BFSHandler implements Handler{
 	public Object compute(Object val, Object mVal) {
 		int oldVal = (int)val;
 		int newVal = (int)mVal;
-		if(oldVal < newVal) return newVal+1;
-		else return oldVal;
+		if(oldVal > newVal){
+			return newVal+1;
+		}
+		else{
+			return oldVal;
+		}
 	}
 
 	@Override

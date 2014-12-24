@@ -11,7 +11,7 @@ public class ConnectedComponent {
 	public static void main(String[] args) throws IOException {
 		IntConverter ic = new IntConverter();
 		Handler handler = new ConnectedComponentHandler();
-		Manager mgr = new Manager("/home/labserver/CG/google", ic, null, ic, 256, 4096, 5, handler,false);
+		Manager mgr = new Manager("google", ic, null, ic, 2, 16, 1, handler,false);
 		mgr.run();
 	}
 }

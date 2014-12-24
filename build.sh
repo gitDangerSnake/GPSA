@@ -4,7 +4,6 @@ rm -rf ./bin
 
 mkdir ./bin
 
-cp config.properties ./bin
 
 javac -Xlint:unchecked -g -d ./bin `find . -name *.java`
 

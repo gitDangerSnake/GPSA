@@ -52,6 +52,7 @@ public class Manager extends Task {
 		this.dws = new DispatcherWorker[ndispatcher];
 		this.currIte = 0;
 		this.endIte = endIte;
+		this.isOutdegreeMatters = isOutdegreeMatters;
 		graph = new Graph(graphFilename, "edgelist", eConv, vConv, mConv, null,
 				isOutdegreeMatters);
 		graph.preprocess();
@@ -76,7 +77,8 @@ public class Manager extends Task {
 		for (int i = 0; i <= maxid; i++) {
 			val = handler.init(i);
 			vConv.setValue(valTemp, val);
-			System.arraycopy(valTemp, 0, writeTemp, 0, sizeOfVal);
+			valTemp[0] |= 0x80;
+			System.arraycopy(valTemp, 0, writeTemp, 0, sizeOfVal);			
 			System.arraycopy(valTemp, 0, writeTemp, sizeOfVal, sizeOfVal);
 			valMC.put(i * sizeOfVal * 2, writeTemp);
 		}
@@ -115,6 +117,7 @@ public class Manager extends Task {
 		} else {
 			averg_per_dispatcher = nedges / ndispatcher + 1;
 		}
+		System.out.println(averg_per_dispatcher);
 
 		int left_sequence = 0;
 		int right_sequence = 0;
@@ -170,38 +173,49 @@ public class Manager extends Task {
 		} else {
 
 			while (right_offset < limit) {
+
 				to = mc.getInt(right_offset);
+				right_offset += 4;
 				if (to == -1) {
 					right_sequence++;
+					if(counter >= averg_per_dispatcher){
+						System.out.println("current k is" + k + " current counter is" + counter);
+
+						sequenceIntervals[k++] = new SequenceInterval(
+								left_sequence, right_sequence, left_offset,
+								right_offset);
+						counter = 0;
+						left_offset = right_offset;
+						left_sequence = right_sequence;
+						while (mc.getInt(right_offset) == -1) {
+							right_sequence++;
+							right_offset += 4;
+							left_offset = right_offset;
+							left_sequence = right_sequence;
+							if (right_offset ==- limit)
+								break;
+						}
+					}
 				} else {
 					counter++;
 				}
-				right_offset += 4;
-				if (counter == averg_per_dispatcher) {
-					sequenceIntervals[k++] = new SequenceInterval(
-							left_sequence, right_sequence, left_offset,
-							right_offset);
-					counter = 0;
-					left_offset = right_offset;
-					left_sequence = right_sequence;
-					while (mc.getInt(right_offset) == -1) {
-						right_sequence++;
-						right_offset += 4;
-						left_offset = right_offset;
-						left_sequence = right_sequence;
-						if (right_offset == limit)
-							break;
-					}
-				}
+				
+				
 			}
-
-			if (nedges % ndispatcher != 0) {
+			
+			if(left_sequence < right_sequence){
 				sequenceIntervals[k] = new SequenceInterval(left_sequence,
 						right_sequence, left_offset, right_offset);
 			}
+
+			
+			
 		}
 
+		System.out.println("k == dispatcher ?" + (k==ndispatcher));
+		
 		for (int i = 0; i < ndispatcher; i++) {
+			System.out.println(sequenceIntervals[i]);
 			dws[i] = new DispatcherWorker(sequenceIntervals[i], handler,
 					isOutdegreeMatters, this);
 			dws[i].start();

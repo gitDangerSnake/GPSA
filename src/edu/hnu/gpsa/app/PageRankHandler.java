@@ -12,7 +12,6 @@ public class PageRankHandler implements Handler {
 
 	@Override
 	public Object compute(Object val, Object mVal) {
-		// TODO Auto-generated method stub
 		return (float)((float)val + 0.85*(float)mVal);
 	}
 

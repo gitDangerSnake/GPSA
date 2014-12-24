@@ -25,11 +25,12 @@ public class DispatcherWorker extends Task {
 	boolean isOutdegreeMatters;
 	private boolean isWeightMatters;
 
-	public DispatcherWorker(SequenceInterval interval, Handler handler,
-			boolean isOutdegreeMatters, Manager mgr) {
-		this.interval = interval;
-		sequence = interval.start;
-		currentoffset = interval.startOffset;
+	public DispatcherWorker(SequenceInterval interval, Handler handler, boolean isOutdegreeMatters, Manager mgr) {
+		if (interval != null) {
+			this.interval = interval;
+			sequence = interval.start;
+			currentoffset = interval.startOffset;
+		}
 		this.mgr = mgr;
 		this.handler = handler;
 		this.isOutdegreeMatters = isOutdegreeMatters;
@@ -64,189 +65,197 @@ public class DispatcherWorker extends Task {
 		byte[] msg = null;
 		int lastDest = -1;
 		int dest = -1;
-		long offset = 0;
 		int vid = -1;
-		int lastSequence = -1;
 		int i = 0;
 		int tos = 0;
-		boolean overFlag = false;
 		boolean inData = false;
 		Stack<Integer> stack = new Stack<Integer>();
 		int sizeOfM = GlobalVaribaleManager.mConv.sizeOf();
-		int sizeOfV = GlobalVaribaleManager.vConv.sizeOf();
+		// int sizeOfV = GlobalVaribaleManager.vConv.sizeOf();
 		int outdegree = 0;
 		Object msgVal = null;
 
-		// TO DO : add logic to process outdegrees
-
 		while (s != Signal.SYSTEM_OVER) {
 
-			restAndStart();
-			offset = index(lastSequence, 0);
-			getValue(offset);
+			if (interval != null) {
+				while (sequence < interval.end && currentoffset < interval.endOffset) {
 
-			lastSequence = sequence;
-			while (currentoffset < interval.endOffset) {
-				
-				
-
-				if (isOutdegreeMatters) {
-
-					while ((vid = GlobalVaribaleManager.csrMC
-							.getInt(currentoffset)) == -1) {
-						sequenceIncrement();
+					while ((vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) == -1) {
 						offsetIncrement();
-						if (inData) {
-							inData = false;
+						sequenceIncrement();
+					}
+
+					value(sequence);
+
+					if (isUnupdated()) { // 如果该sequence处的顶点在上一个超步中没有发生更新则跳过，进入下一个sequence的数据区
+						while (currentoffset < interval.endOffset && (vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) != -1) {
+							offsetIncrement();
 						}
-						if (currentoffset == interval.endOffset) {
-							overFlag = true;
-							break;
+						while (currentoffset < interval.endOffset && (vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) == -1) {
+							offsetIncrement();
+							sequenceIncrement();
 						}
-					}
+					} else {// 数据发生了更新
 
-					if (overFlag) {
-						overFlag = false;
-						break;
-					}
+						if (isOutdegreeMatters) {
 
-					if (!inData) {
-						inData = true;
-						outdegree = vid;
-						continue;
-					}
-					if (isWeightMatters) {
-						
-						
-
-					} else {
-						if (lastSequence != sequence) {
-							offset = index(lastSequence, 0);
-							getValue(offset);
-							tos = stack.size();
-							msg = new byte[tos * 4 + sizeOfM];
-							msgVal = handler.msgVal(val,outdegree,null);
-							GlobalVaribaleManager.mConv.setValue(msg, msgVal);
-							for (i = 0; i < tos; ++i) {
-								GlobalVaribaleManager.iConv.setValue(msg,
-										stack.pop(), sizeOfM + i * 4);
-							}
-							// send message
-							mgr.send(lastDest, msg);
-							lastSequence = sequence;
-
-						} else {
-							if (lastDest == -1) {
-								lastDest = locate(vid);
-								stack.push(vid);
-							} else {
-								dest = locate(vid);
-								if (dest == lastDest) {
+							// 处理一个vertex entry
+							while ((vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) != -1) {
+								if (!inData) {
+									outdegree = vid;
+									inData = !inData;
+								}
+								if (lastDest == -1) {
+									lastDest = locate(vid);
 									stack.push(vid);
 								} else {
-									tos = stack.size();
-									msg = new byte[tos * 4 + sizeOfM];
-									GlobalVaribaleManager.mConv.setValue(msg,msgVal);
-									for (i = 0; i < tos; i++) {
-										GlobalVaribaleManager.iConv.setValue(
-												msg, stack.pop(), sizeOfM + i
-														* 4);
+									dest = locate(vid);
+									if (dest == lastDest) {
+										stack.push(vid);
+									} else {
+										tos = stack.size();
+										msg = new byte[tos * 4 + sizeOfM];
+										msgVal = handler.msgVal(val, outdegree, null);
+										GlobalVaribaleManager.mConv.setValue(msg, msgVal);
+										for (i = 0; i < tos; i++) {
+											GlobalVaribaleManager.iConv.setValue(msg, stack.pop(), sizeOfM + i * 4);
+										}
+										// send message
+										mgr.send(lastDest, msg);
+										lastDest = dest;
+										stack.push(vid);
 									}
-									// send message
-									mgr.send(lastDest, msg);
-
-									lastDest = dest;
-									stack.push(vid);
-
 								}
+								offsetIncrement();
 							}
-						}
 
-					}
-				} else {
+							if (!stack.isEmpty()) {
+								tos = stack.size();
+								msg = new byte[tos * 4 + sizeOfM];
+								msgVal = handler.msgVal(val, outdegree, null);
+								GlobalVaribaleManager.mConv.setValue(msg, msgVal);
+								for (i = 0; i < tos; i++) {
+									GlobalVaribaleManager.iConv.setValue(msg, stack.pop(), sizeOfM + i * 4);
+								}
+								// send message
+								mgr.send(lastDest, msg);
+							}
 
-					// System.out.println("Worker " + did +" start processing "
-					// + sequence);
-					while ((vid = GlobalVaribaleManager.csrMC
-							.getInt(currentoffset)) == -1) {
-						sequenceIncrement();
-						offsetIncrement();
-						if (currentoffset == interval.endOffset) {
-							overFlag = true;
-							break;
-						}
-					}
-					if (overFlag) {
-						overFlag = false;
-						break;
-					}
+							lastDest = -1;
+							inData = !inData;
 
-					if (lastSequence != sequence) {
-						offset = index(lastSequence, 0);
-						getValue(offset);
-						tos = stack.size();
-						msg = new byte[tos * 4 + sizeOfM];
-						GlobalVaribaleManager.mConv.setValue(msg, val);
-						for (i = 0; i < tos; ++i) {
-							GlobalVaribaleManager.iConv.setValue(msg,
-									stack.pop(), sizeOfM + i * 4);
-						}
-						// send message
-						mgr.send(lastDest, msg);
-						lastSequence = sequence;
-
-					} else {
-						if (lastDest == -1) {
-							lastDest = locate(vid);
-							stack.push(vid);
 						} else {
-							dest = locate(vid);
-							if (dest == lastDest) {
-								stack.push(vid);
-							} else {
+
+							while ((vid = GlobalVaribaleManager.csrMC.getInt(currentoffset)) != -1) {
+
+								if (lastDest == -1) {
+									lastDest = locate(vid);
+									stack.push(vid);
+								} else {
+									dest = locate(vid);
+									if (dest == lastDest) {
+										stack.push(vid);
+									} else {
+										tos = stack.size();
+										msg = new byte[tos * 4 + sizeOfM];
+										GlobalVaribaleManager.mConv.setValue(msg, val);
+										for (i = 0; i < tos; i++) {
+											int t = stack.pop();
+											GlobalVaribaleManager.iConv.setValue(msg, t, sizeOfM + i * 4);
+											if (0 == did)
+												System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + val);
+										}
+										// send message
+										mgr.send(lastDest, msg);
+										lastDest = dest;
+										stack.push(vid);
+									}
+								}
+								offsetIncrement();
+							}
+
+							if (!stack.isEmpty()) {
 								tos = stack.size();
 								msg = new byte[tos * 4 + sizeOfM];
 								GlobalVaribaleManager.mConv.setValue(msg, val);
 								for (i = 0; i < tos; i++) {
-									GlobalVaribaleManager.iConv.setValue(msg,
-											stack.pop(), sizeOfM + i * 4);
+									int t = stack.pop();
+									GlobalVaribaleManager.iConv.setValue(msg, t, sizeOfM + i * 4);
+									if (0 == did)
+										System.out.println("sequence " + sequence + " send message to " + t + " and msgval is " + val);
+
 								}
 								// send message
 								mgr.send(lastDest, msg);
-
-								lastDest = dest;
-								stack.push(vid);
-
 							}
+
+							lastDest = -1;
+
 						}
+
+						offsetIncrement();
+						sequenceIncrement();
 					}
 				}
-
-				offsetIncrement();
+				restAndStart();
 			}
 
 			// System.out.println("current iteration dispatch finished notify manager"
 			// );
 			// 通知manager，本迭代的分发任务完成
 			mgr.noteDispatch(Signal.DISPATCHER_ITERATION_DISPATCH_OVER);
-			// System.out.println("success notify manager");
+
+			// 在通知完manager后，到收到来自manager的通知之前，会有一段空闲时间，这里可以添加一些清理或者监控的功能，达到最大的CPU利用率
+			if (zeroIte)
+				zeroIte = !zeroIte; //
+			
+			
+
 			s = signals.get();
+
 		}
+
 	}
+
+	private void value(int currentSequence) throws IOException {
+		long offset = index(currentSequence, 0);
+		getValue(offset);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public boolean isUnupdated(){
+		byte[] array = new byte[GlobalVaribaleManager.vConv.sizeOf()];
+		GlobalVaribaleManager.vConv.setValue(array, val);
+		return (array[0] & 0x80)!=0;
+	}
+
+	boolean zeroIte = true;
 
 	public void getValue(long offset) throws IOException {
 		// 获取当前sequence的value值
 		if (val instanceof Long) {
-			val = GlobalVaribaleManager.valMC.getLong(offset);
+			if (zeroIte)
+				val = GlobalVaribaleManager.valMC.getLong(offset) & 0x7f_ff_ff_ff_ff_ff_ff_ffL;
+			else
+				val = GlobalVaribaleManager.valMC.getLong(offset);
 		} else if (val instanceof Double) {
-			val = GlobalVaribaleManager.valMC.getDouble(offset);
+			if (zeroIte)
+				val = GlobalVaribaleManager.valMC.getDouble(offset) * -1;
+			else
+				val = GlobalVaribaleManager.valMC.getDouble(offset);
 		} else if (val instanceof Integer) {
-			val = GlobalVaribaleManager.valMC.getInt(offset);
+			if (zeroIte)
+				val = GlobalVaribaleManager.valMC.getInt(offset) & 0x7f_ff_ff_ff;
+			else
+				val = GlobalVaribaleManager.valMC.getInt(offset);
 		} else if (val instanceof Float) {
-			val = GlobalVaribaleManager.valMC.getFloat(offset);
+			if (zeroIte)
+				val = GlobalVaribaleManager.valMC.getFloat(offset) * -1;
+			else
+				val = GlobalVaribaleManager.valMC.getFloat(offset);
 		} else {
-			byte[] data = GlobalVaribaleManager.valMC.get(0,
-					GlobalVaribaleManager.vConv.sizeOf());
+			// 这里用来处理更加复杂的数据，通过字节数组来转换，但是对于目前的理论实现应用而言，基本数据类型够用
+			byte[] data = GlobalVaribaleManager.valMC.get(0, GlobalVaribaleManager.vConv.sizeOf());
 			val = GlobalVaribaleManager.vConv.getValue(data);
 		}
 	}

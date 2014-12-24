@@ -25,6 +25,8 @@ public class ComputerWorker extends Task {
 		fisrtMsg = new BitSet(nv);
 		this.mgr = mgr;
 		val = handler.init(0);
+//		System.out.println("constructor --" + (val instanceof Long));
+
 
 	}
 
@@ -40,6 +42,8 @@ public class ComputerWorker extends Task {
 		int translateId = 0;
 		int lastTo = -1;
 		Object lastVal = val;
+//		System.out.println("before execute " + (val instanceof Long));
+
 		while (o != Signal.SYSTEM_OVER) {
 			if (o instanceof byte[]) {
 				msg = (byte[]) o;
@@ -58,20 +62,16 @@ public class ComputerWorker extends Task {
 						}
 						// 获取顶点to的value
 						if (val instanceof Long) {
-							val = GlobalVaribaleManager.valMC.getLong(offset);
-							if ((long) val < 0) {
-								val = (long) val & 0x7f_ff_ff_ff_ff_ff_ff_ffL;
-							}
+							val = GlobalVaribaleManager.valMC.getLong(offset) & 0x7f_ff_ff_ff_ff_ff_ff_ffL;
+							
 						} else if (val instanceof Double) {
 							val = GlobalVaribaleManager.valMC.getDouble(offset);
 							if((double)val < 0){
 								val = (double) val * -1;
 							}
 						} else if (val instanceof Integer) {
-							val = GlobalVaribaleManager.valMC.getInt(offset);
-							if((int)val < 0){
-								val = (int)val & 0x7f_ff_ff_ff;
-							}
+							val = GlobalVaribaleManager.valMC.getInt(offset) & 0x7f_ff_ff_ff;
+//							System.out.println("get val of vertex " + to + " and value is " + val + " original value is" + GlobalVaribaleManager.valMC.getInt(offset)+" and message value is" + mVal);
 						} else if (val instanceof Float) {
 							val = GlobalVaribaleManager.valMC.getFloat(offset);
 							if((float)val <0){
@@ -87,9 +87,13 @@ public class ComputerWorker extends Task {
 					}
 
 					// 然后对vlaue和m进行计算
+					
+//					System.out.println(val instanceof Long);
 					newVal = handler.compute(val, mVal);
 					lastVal = newVal;
 					lastTo = to;
+					if(to == 5 )
+						System.out.println("new value is "+ newVal + " old value is "+val +" "+handler.isUpdated(val, newVal));
 
 					// 写入value
 					if (handler.isUpdated(val, newVal)) {
